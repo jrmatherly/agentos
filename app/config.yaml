@@ -1,0 +1,30 @@
+# AgentOS UI Configuration
+# See: https://docs.agno.com/agent-os/config
+
+chat:
+  quick_prompts:
+    knowledge-agent:
+      - "What is Agno?"
+      - "How do I create an agent?"
+      - "Search for information about AgentOS"
+    mcp-agent:
+      - "What tools are available?"
+      - "What is Agno?"
+      - "Help me understand MCP"
+    research-team:
+      - "Research the latest AI developments"
+      - "What's trending on HackerNews?"
+      - "Find information about cloud computing trends"
+    content-workflow:
+      - "Write an article about AI agents"
+      - "Create content about cloud computing"
+      - "Generate a blog post about Python best practices"
+
+memory:
+  display_name: "Agent Memories"
+
+session:
+  display_name: "User Sessions"
+
+knowledge:
+  display_name: "Knowledge Bases"

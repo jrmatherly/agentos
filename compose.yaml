@@ -1,0 +1,85 @@
+services:
+  agentos-db:
+    image: agnohq/pgvector:18
+    container_name: agentos-db
+    restart: unless-stopped
+    networks:
+      - agentos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./scripts/db/init/:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: ${DB_USER:-agno}
+      POSTGRES_PASSWORD: ${DB_PASS:-agno}
+      POSTGRES_DB: ${DB_DATABASE:-agno}
+
+  agentos-redis:
+    image: redis:8-alpine
+    container_name: agentos-redis
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - agentos
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  agentos:
+    container_name: agentos
+    image: ghcr.io/jrmatherly/agentos:latest
+    # Or build locally:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # TODO: Deprecation warnings will appear in logs from Agno's MCP server (streamable_http_client),
+    # websockets (ws_handler), and aiohttp (enable_cleanup_closed). These are cosmetic and do not
+    # affect functionality. Remove this comment once Agno upstream has been updated.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - agentos
+    # extra_hosts:
+    #  - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      # LiteLLM
+      LITELLM_API_KEY: ${LITELLM_API_KEY}
+      LITELLM_API_BASE: ${LITELLM_API_BASE:-}
+      LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:-gpt-5-mini}
+      KNOWLEDGE_AGENT_MODEL: ${KNOWLEDGE_AGENT_MODEL:-gpt-5-mini}
+      MCP_AGENT_MODEL: ${MCP_AGENT_MODEL:-gpt-5-mini}
+      # PostgreSQL
+      DB_HOST: agentos-db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-agno}
+      DB_PASS: ${DB_PASS:-agno}
+      DB_DATABASE: ${DB_DATABASE:-agno}
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://agentos-redis:6379}
+      # Other LLM Providers (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      # Runtime
+      WAIT_FOR_DB: "True"
+      PRINT_ENV_ON_LOAD: "True"
+      # TODO: Remove once Agno upstream has been updated to use streamable-http transport
+      # Suppresses deprecation warnings from Agno's MCP server, websockets, and aiohttp
+      PYTHONWARNINGS: "ignore::DeprecationWarning"
+    depends_on:
+      - agentos-db
+      - agentos-redis
+
+#networks:
+#  agentos:
+#    name: agentos
+
+volumes:
+  pgdata:
+  redisdata:

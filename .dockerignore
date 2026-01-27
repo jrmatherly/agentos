@@ -1,0 +1,56 @@
+.DS_Store
+
+docs
+.docs
+.git
+.github
+
+# Cache
+.mypy_cache
+.ruff_cache
+.pytest_cache
+*__pycache__*
+*.egg-info
+*.pyc
+
+# Machine specific
+.idea
+.vscode
+
+# Ignore .env files
+.env
+.envrc
+
+# ignore virtualenvs
+.venv
+venv*
+aienv*
+
+.ipynb_checkpoints
+
+# AI Agents
+.claude
+.serena
+
+# Mise (local tooling)
+.mise
+mise.local.toml
+
+# JWT Keys (CRITICAL - never include in build)
+keys/
+
+# Lock files (not needed for build, very large)
+uv.lock
+mise.lock
+mise.local.lock
+
+# Additional artifacts
+*.egg-info/
+agentos_*.egg-info/
+htmlcov/
+.coverage
+*.cover
+
+# Build/test outputs
+build/
+dist/

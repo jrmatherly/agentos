@@ -1,0 +1,137 @@
+{
+  "name": "agentos-docker",
+  "version": "1.0.0",
+  "description": "AI agent API built on Agno framework",
+  "generated": "2026-01-27",
+  "stack": {
+    "language": "Python 3.12+",
+    "framework": "Agno (FastAPI)",
+    "llm": "LiteLLM >=1.81.3",
+    "database": "PostgreSQL + pgvector",
+    "cache": "Redis (optional)"
+  },
+  "ports": { "api": 8000, "db": 5432, "redis": 6379 },
+  "entryPoints": {
+    "main": "app/main.py",
+    "config": "app/config.py",
+    "auth": "app/auth.py",
+    "session": "db/session.py"
+  },
+  "agents": [
+    {
+      "id": "knowledge-agent",
+      "file": "agents/knowledge_agent.py",
+      "features": ["hybrid-search", "pgvector", "pii-guardrail"]
+    },
+    {
+      "id": "mcp-agent",
+      "file": "agents/mcp_agent.py",
+      "features": ["mcp-tools", "agentic-memory"]
+    },
+    {
+      "id": "reasoning-agent",
+      "file": "agents/reasoning/reasoning_agent.py",
+      "features": ["reasoning-flag"]
+    },
+    {
+      "id": "reasoning-model-agent",
+      "file": "agents/reasoning/reasoning_model_agent.py",
+      "features": ["native-cot"]
+    },
+    {
+      "id": "reasoning-tools-agent",
+      "file": "agents/reasoning/reasoning_tools_agent.py",
+      "features": ["think", "analyze"]
+    },
+    {
+      "id": "finance-agent",
+      "file": "agents/tools/finance_agent.py",
+      "features": ["yfinance"]
+    },
+    {
+      "id": "web-scraper-agent",
+      "file": "agents/tools/web_scraper_agent.py",
+      "features": ["duckduckgo", "newspaper4k"]
+    },
+    {
+      "id": "research-agent",
+      "file": "agents/tools/research_agent.py",
+      "features": ["multi-source"]
+    },
+    {
+      "id": "learning-assistant",
+      "file": "agents/learning/learning_assistant.py",
+      "features": ["user-memories"]
+    },
+    {
+      "id": "confirmation-agent",
+      "file": "agents/hitl/confirmation_agent.py",
+      "features": ["hitl"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "research-team",
+      "file": "teams/research_team.py",
+      "members": ["web_researcher", "tech_researcher", "synthesizer"]
+    },
+    {
+      "id": "support-team",
+      "file": "teams/support_team.py",
+      "members": ["doc_agent", "escalation_agent", "feedback_agent"]
+    },
+    {
+      "id": "reasoning-team",
+      "file": "teams/reasoning_team.py",
+      "members": ["web_agent", "finance_agent"]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "content-workflow",
+      "file": "workflows/content_workflow.py",
+      "steps": ["researcher", "writer", "editor"]
+    },
+    {
+      "id": "blog-workflow",
+      "file": "workflows/blog_generator.py",
+      "steps": ["research", "write"]
+    }
+  ],
+  "endpoints": [
+    { "path": "/v1/agents", "method": "GET" },
+    { "path": "/v1/chat/{agent}", "method": "POST", "streaming": true },
+    { "path": "/v1/teams", "method": "GET" },
+    { "path": "/health", "method": "GET" },
+    { "path": "/docs", "method": "GET" },
+    { "path": "/mcp", "method": "*" }
+  ],
+  "configFunctions": {
+    "get_litellm_config": "app/config.py",
+    "get_model_id": "app/config.py",
+    "get_session_db": "db/session.py",
+    "get_postgres_db": "db/session.py"
+  },
+  "env": {
+    "required": ["LITELLM_API_KEY"],
+    "database": ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASS", "DB_DATABASE"],
+    "optional": [
+      "LITELLM_API_BASE",
+      "LITELLM_DEFAULT_MODEL",
+      "REDIS_URL",
+      "JWT_VERIFICATION_KEY"
+    ]
+  },
+  "commands": {
+    "docker": "docker compose up -d --build",
+    "dev": "mise run dev",
+    "validate": "mise run validate",
+    "format": "mise run format"
+  },
+  "docs": [
+    "GETTING_STARTED.md",
+    "CREATING_AGENTS.md",
+    "JWT_RBAC.md",
+    "CODE_REFERENCE.md"
+  ]
+}

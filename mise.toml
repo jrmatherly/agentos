@@ -1,0 +1,90 @@
+# mise.toml - AgentOS Development Configuration
+min_version = "2026.1.0"
+
+[settings]
+lockfile = true
+experimental = true
+python_venv_auto_create = true
+
+[tools]
+python = "3.12"
+uv = "latest"
+
+[env]
+# Virtual environment - auto-create and activate
+_.python.venv = { path = ".venv", create = true }
+
+# Backward compatibility - load .env if it exists
+_.file = [".env"]
+
+# Database defaults (use container service names for Docker networking)
+# For local dev without Docker, override in .env with DB_HOST=localhost
+DB_HOST = "agentos-db"
+DB_PORT = "5432"
+DB_USER = "agno"
+DB_PASS = "agno"
+DB_DATABASE = "agno"
+
+# Redis for session storage (use container service name)
+# For local dev without Docker, use REDIS_URL=redis://localhost:6379
+# To disable Redis and use PostgreSQL for sessions, comment out or set empty
+REDIS_URL = "redis://agentos-redis:6379"
+
+# LiteLLM defaults
+LITELLM_DEFAULT_MODEL = "gpt-5-mini"
+
+# Required - mise validates this exists
+LITELLM_API_KEY = { required = "Set LITELLM_API_KEY in mise.local.toml or .env" }
+
+[tasks.setup]
+description = "Install dependencies and setup development environment"
+run = """
+uv pip install -r requirements.txt
+uv pip install -e .[dev]
+"""
+
+[tasks.format]
+description = "Format code with ruff"
+run = "./scripts/format.sh"
+alias = "f"
+
+[tasks.validate]
+description = "Run linting and type checking"
+run = "./scripts/validate.sh"
+alias = "check"
+
+[tasks.generate-requirements]
+description = "Regenerate requirements.txt from pyproject.toml"
+run = "./scripts/generate_requirements.sh"
+
+[tasks."generate-requirements:upgrade"]
+description = "Regenerate requirements.txt with upgrades"
+run = "./scripts/generate_requirements.sh upgrade"
+
+[tasks.build]
+description = "Build Docker image"
+run = "./scripts/build_image.sh"
+
+[tasks.dev]
+description = "Run development server"
+run = "python -m app.main"
+
+[tasks.load-knowledge]
+description = "Load knowledge base documents"
+run = "python -m agents.knowledge_agent"
+
+[tasks.release]
+description = "Create a new release (tag + GitHub release)"
+run = "./scripts/release.sh"
+
+[tasks."release:major"]
+description = "Create a major release (vX.0.0)"
+run = "./scripts/release.sh major --yes"
+
+[tasks."release:minor"]
+description = "Create a minor release (vX.Y.0)"
+run = "./scripts/release.sh minor --yes"
+
+[tasks."release:patch"]
+description = "Create a patch release (vX.Y.Z)"
+run = "./scripts/release.sh patch --yes"

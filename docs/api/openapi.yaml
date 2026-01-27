@@ -1,0 +1,600 @@
+openapi: 3.1.0
+info:
+  title: AgentOS API
+  version: 1.0.0
+  description: |
+    AgentOS is a production-ready API for running AI agents, teams, and workflows.
+    Built on the Agno framework, it provides RESTful endpoints for interacting with
+    intelligent agents that can search knowledge bases and use external tools.
+
+    ## Authentication
+
+    AgentOS uses API key authentication. Include your API key in the request headers:
+
+    ```
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    ## Rate Limiting
+
+    Default rate limits apply:
+    - 100 requests per minute for chat endpoints
+    - 1000 requests per minute for read-only endpoints
+
+    ## Base URL
+
+    - **Local Development**: `http://localhost:8000`
+    - **Control Plane**: Connect via [os.agno.com](https://os.agno.com)
+
+  contact:
+    name: Jason Matherly
+    email: jason@matherly.net
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://{environment}.api.example.com
+    description: Deployed environment
+    variables:
+      environment:
+        default: dev
+        enum:
+          - dev
+          - staging
+          - prod
+
+tags:
+  - name: Agents
+    description: Agent management and interaction
+  - name: Chat
+    description: Chat with AI agents
+  - name: Knowledge
+    description: Knowledge base management
+  - name: Health
+    description: Health and status endpoints
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the AgentOS service
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: healthy
+                version: "1.0.0"
+                timestamp: "2026-01-26T12:00:00Z"
+
+  /v1/agents:
+    get:
+      summary: List all agents
+      description: Returns a list of all available agents and their configurations
+      operationId: listAgents
+      tags:
+        - Agents
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Agent"
+              example:
+                agents:
+                  - name: Knowledge Agent
+                    id: knowledge-agent
+                    description: Vector search Q&A agent
+                    model: gpt-5-mini
+                    features:
+                      - hybrid_search
+                      - agentic_memory
+                  - name: MCP Agent
+                    id: mcp-agent
+                    description: MCP tools agent
+                    model: gpt-5-mini
+                    features:
+                      - mcp_tools
+                      - agentic_memory
+
+  /v1/agents/{agent_id}:
+    get:
+      summary: Get agent details
+      description: Returns detailed information about a specific agent
+      operationId: getAgent
+      tags:
+        - Agents
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The agent identifier (slug)
+          schema:
+            type: string
+            example: knowledge-agent
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/chat/{agent_id}:
+    post:
+      summary: Chat with an agent
+      description: |
+        Send a message to an agent and receive a response.
+        Supports both synchronous and streaming responses.
+      operationId: chatWithAgent
+      tags:
+        - Chat
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The agent identifier
+          schema:
+            type: string
+            example: knowledge-agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+            examples:
+              simple:
+                summary: Simple message
+                value:
+                  message: "What is Agno?"
+              with_context:
+                summary: Message with context
+                value:
+                  message: "Explain this code"
+                  context:
+                    code: "def hello(): return 'world'"
+                  session_id: "sess_abc123"
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-sent events for streaming responses
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/chat/{agent_id}/sessions:
+    get:
+      summary: List chat sessions
+      description: Returns all chat sessions for an agent
+      operationId: listSessions
+      tags:
+        - Chat
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Session"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+  /v1/knowledge/{agent_id}:
+    get:
+      summary: List knowledge base items
+      description: Returns items in the agent's knowledge base
+      operationId: listKnowledge
+      tags:
+        - Knowledge
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Knowledge base items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/KnowledgeItem"
+
+    post:
+      summary: Add knowledge
+      description: Add a new item to the agent's knowledge base
+      operationId: addKnowledge
+      tags:
+        - Knowledge
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeInput"
+            examples:
+              url:
+                summary: Add from URL
+                value:
+                  name: "Agno Documentation"
+                  url: "https://docs.agno.com/introduction.md"
+              text:
+                summary: Add text content
+                value:
+                  name: "Custom FAQ"
+                  content: "Q: What is AgentOS?\nA: A production-ready API for AI agents."
+      responses:
+        "201":
+          description: Knowledge added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/knowledge/{agent_id}/search:
+    post:
+      summary: Search knowledge base
+      description: Perform semantic search on the knowledge base
+      operationId: searchKnowledge
+      tags:
+        - Knowledge
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Search query
+                limit:
+                  type: integer
+                  default: 10
+                  maximum: 50
+                search_type:
+                  type: string
+                  enum:
+                    - semantic
+                    - keyword
+                    - hybrid
+                  default: hybrid
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SearchResult"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Agent:
+      type: object
+      required:
+        - name
+        - id
+      properties:
+        name:
+          type: string
+          description: Display name of the agent
+        id:
+          type: string
+          description: Unique identifier (slug)
+        description:
+          type: string
+        model:
+          type: string
+          description: LLM model used by the agent
+        features:
+          type: array
+          items:
+            type: string
+
+    AgentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Agent"
+        - type: object
+          properties:
+            instructions:
+              type: string
+              description: Agent's system prompt
+            knowledge_enabled:
+              type: boolean
+            tools:
+              type: array
+              items:
+                type: string
+            settings:
+              type: object
+              properties:
+                enable_agentic_memory:
+                  type: boolean
+                num_history_runs:
+                  type: integer
+
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: The user's message
+          minLength: 1
+          maxLength: 32000
+        session_id:
+          type: string
+          description: Optional session ID for conversation continuity
+        context:
+          type: object
+          description: Additional context to include
+          additionalProperties: true
+        stream:
+          type: boolean
+          default: false
+          description: Enable streaming response
+
+    ChatResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The agent's response
+        session_id:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/Source"
+        metadata:
+          type: object
+          properties:
+            model:
+              type: string
+            tokens_used:
+              type: integer
+            latency_ms:
+              type: integer
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+
+    KnowledgeItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+          description: URL or "manual" for text input
+        created_at:
+          type: string
+          format: date-time
+        chunk_count:
+          type: integer
+
+    KnowledgeInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name/title of the knowledge item
+        url:
+          type: string
+          format: uri
+          description: URL to fetch content from
+        content:
+          type: string
+          description: Raw text content (alternative to URL)
+
+    SearchResult:
+      type: object
+      properties:
+        content:
+          type: string
+        score:
+          type: number
+          format: float
+        source:
+          type: string
+        metadata:
+          type: object
+
+    Source:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        relevance:
+          type: number
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: BAD_REQUEST
+            message: "Invalid request body"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: NOT_FOUND
+            message: "Agent not found"
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: RATE_LIMITED
+            message: "Too many requests"
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - bearerAuth: []
+  - apiKey: []
