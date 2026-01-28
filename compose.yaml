@@ -29,11 +29,11 @@ services:
 
   agentos:
     container_name: agentos
-    image: ghcr.io/jrmatherly/agentos:latest
+    # image: ghcr.io/jrmatherly/agentos:latest
     # Or build locally:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
     # TODO: Deprecation warnings will appear in logs from Agno's MCP server (streamable_http_client),
     # websockets (ws_handler), and aiohttp (enable_cleanup_closed). These are cosmetic and do not
     # affect functionality. Remove this comment once Agno upstream has been updated.
@@ -76,9 +76,9 @@ services:
       - agentos-db
       - agentos-redis
 
-#networks:
-#  agentos:
-#    name: agentos
+networks:
+  agentos:
+    name: agentos
 
 volumes:
   pgdata:
