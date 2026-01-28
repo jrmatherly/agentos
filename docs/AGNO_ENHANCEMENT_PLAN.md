@@ -328,30 +328,52 @@ Implement the full Learning Machine pattern with multiple knowledge stores.
 
 ```python
 # agents/learning/advanced_learning_assistant.py
-from agno.learning import LearningMachine
-from agno.learning.stores import (
-    UserProfileStore,
-    UserMemoryStore,
-    SessionContextStore,
-    EntityMemoryStore,
-    LearnedKnowledgeStore,
-)
+from agno.agent import Agent
+from agno.learn import LearningMachine, UserProfileConfig
+from agno.models.litellm import LiteLLM
 
-learning_machine = LearningMachine(
-    user_profile_store=UserProfileStore(db=agent_db),
-    user_memory_store=UserMemoryStore(db=agent_db),
-    session_context_store=SessionContextStore(db=agent_db),
-    entity_memory_store=EntityMemoryStore(db=agent_db),
-    learned_knowledge_store=LearnedKnowledgeStore(db=agent_db),
-)
+from app.config import get_litellm_config, get_model_id
+from db.session import get_session_db
 
+agent_db = get_session_db()
+
+# Simple boolean-based configuration
 advanced_assistant = Agent(
     name="Advanced Learning Assistant",
     model=LiteLLM(id=get_model_id("Learning Assistant"), **get_litellm_config()),
     db=agent_db,
-    learning_machine=learning_machine,
-    learning_mode="agentic",  # or "always", "propose"
-    # ...
+    learning=LearningMachine(
+        user_profile=True,       # Structured fields (name, preferences)
+        user_memory=True,        # Unstructured observations & facts
+        session_context=True,    # Goals, plans, active state
+        entity_memory=True,      # Facts about business entities
+        learned_knowledge=False, # Reusable insights (requires Knowledge base)
+    ),
+    markdown=True,
+)
+
+# Or with custom profile schema
+from dataclasses import dataclass, field
+from typing import Optional
+from agno.learn.schemas import UserProfile
+
+@dataclass
+class CustomerProfile(UserProfile):
+    """Extended profile for personalization."""
+    company: Optional[str] = field(default=None, metadata={"description": "Company name"})
+    role: Optional[str] = field(default=None, metadata={"description": "Job title"})
+    expertise_level: Optional[str] = field(default=None, metadata={"description": "beginner|intermediate|expert"})
+
+custom_assistant = Agent(
+    name="Custom Learning Assistant",
+    model=LiteLLM(id=get_model_id("Learning Assistant"), **get_litellm_config()),
+    db=agent_db,
+    learning=LearningMachine(
+        user_profile=UserProfileConfig(schema=CustomerProfile),
+        user_memory=True,
+        session_context=True,
+    ),
+    markdown=True,
 )
 ```
 
